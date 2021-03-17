@@ -15,7 +15,6 @@ filepath = '../data/bungae_test/images/'
 
 
 def get_image(image_url):
-    # image_url = "https://cdn.pixabay.com/photo/2020/02/06/09/39/summer-4823612_960_720.jpg"
     filename = image_url[0]
 
     # Open the url image, set stream to True, this will return the stream content.
@@ -57,8 +56,6 @@ def read_image(dirpath):
     imgdata = datasets.ImageFolder(dirpath, transform=transform)
     imgdata = ImgDataset(imgdata)
     return imgdata
-    # trainloader = torch.utils.data.DataLoader(imgdata,
-    #                                           batch_size=32)
 
 
 def read_text(filepath):
@@ -73,17 +70,11 @@ def read_text(filepath):
     data.dropna(subset=['image_url'], inplace=True)
     df = data['content_id'].groupby(data['content_id']).count()
 
-    # a = df.loc[df > 1].index.tolist()
-    # b = data[data['content_id'].isin(a)].sort_values('content_id')
-    # # print(b.info())  # show ref_term could be null
     b = data.sort_values(['content_id', 'ref_term']).groupby('content_id', as_index=False).first()
     b.fillna('', inplace=True)
 
     # text 구성 <sep> 없어도 괜찮은걸까 확인필요...
     b['texts'] = '<cls> ' + b['name'] + ' <kwd> ' + b['keyword'] + ' <cat> ' + b['category_name']
 
-    # ready text data
-    # train_text = b[['content_id', 'texts']].values
-    # for content_id, texts in b[['content_id', 'texts']].values
     train_text = {cid: texts for cid, texts in b[['content_id', 'texts']].values}
     return train_text

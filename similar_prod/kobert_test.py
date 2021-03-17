@@ -1,32 +1,17 @@
 import torch
 import torch.nn
-from kobert.pytorch_kobert import get_pytorch_kobert_model
-from gluonnlp.data import SentencepieceTokenizer
-from kobert.utils import get_tokenizer
 
 from torch.utils.data import Dataset, DataLoader
 
-# input_ids = torch.LongTensor([[31, 51, 99], [15, 5, 0]])
-# input_mask = torch.LongTensor([[1, 1, 1], [1, 1, 0]])
-# token_type_ids = torch.LongTensor([[0, 0, 1], [0, 1, 0]])
-model, vocab = get_pytorch_kobert_model()
-tok_path = get_tokenizer()
-
-sp = SentencepieceTokenizer(tok_path)
-# idx = vocab.to_indices(sp('[CLS] 한국어 모델을 공유합니다. [SEP]'))
-# sequence_output, pooled_output = model(torch.tensor([idx]), torch.ones(1, len(idx)))
-Model, Vocab = get_pytorch_kobert_model()
 
 
 class TextProcessor:
     def __init__(self, vocab, tokenizer):
-        self.tokenizer = SentencepieceTokenizer(tokenizer)
+        self.tokenizer = tokenizer
         self.vocab = vocab
 
     def text_tokenizing(self, text):
-        # 텍스트 들어오면 text tokenizing
-        # idx = vocab.to_indices(sp('[CLS] 한국어 모델을 공유합니다. [SEP]'))
-        idx = vocab.to_indices(sp(text))
+        idx = self.vocab.to_indices(self.tokenizer(text))
         # attn_id = torch.ones(1, len(idx))) # TODO att 정보 만드는 법 참조
         return idx
 
@@ -39,7 +24,7 @@ class TextImageDataset(Dataset):
         self.imgdata = imgdata
         self.data = []
         for idx, cid in enumerate(textdata.keys()):
-            self.data.append([self.textdata[cid], self.imgdata[cid]])
+            self.data.append([cid, torch.tensor(self.textdata[cid]), torch.tensor(self.imgdata[cid])])
 
     def __len__(self):
         return len(self.textdata)
@@ -48,9 +33,13 @@ class TextImageDataset(Dataset):
         return self.data[idx]
 
 
-def make_pad(samples):
-    print(samples)
-    return
+def to_batch(batch):
+    cid, text, img = zip(*batch)
+    pad_ko = torch.nn.utils.rnn.pad_sequence(text, batch_first=True)
+    return cid, pad_ko, torch.stack(img)
+
+
+
 
 # 0. unsupervised learning
 # 두 pretrained 모델 합쳐서 비슷한 임베딩 id 찾기
