@@ -1,23 +1,23 @@
+
+import warnings
 import pandas as pd
-from torch.utils.data import Dataset, DataLoader
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.data import DataLoader
 from torchvision import models as torch_vmodels
-from torch.utils.data import TensorDataset
-
-from similar_prod.down_image import get_image, read_image, read_text
-from similar_prod.kobert_test import TextProcessor, TextImageDataset, to_batch
 from gluonnlp.data import SentencepieceTokenizer
-
-pd.set_option('display.max_columns', 10)
-
 from kobert.utils import get_tokenizer
 from kobert.pytorch_kobert import get_pytorch_kobert_model
-from similar_prod.kobert_test import TextProcessor
-from similar_prod.model import TextImg2Vec
 
-data = pd.read_csv('../data/bungae_test/rec-exam.csv000.gz',
+from down_image import get_image
+from preprocessing import TextProcessor, TextImageDataset, to_batch, read_image, read_text
+from model import TextImg2Vec
+
+
+pd.set_option('display.max_columns', 10)
+warnings.filterwarnings("ignore")
+
+data = pd.read_csv('data/bungae_test/rec-exam.csv000.gz',
                    compression='gzip',
                    quotechar='"',
                    escapechar='\\',
@@ -29,7 +29,7 @@ data.dropna(subset=['image_url'], inplace=True)
 # download data
 for v in zip(data['content_id'], data['image_url']):
     print(v)
-    get_image(v)
+    get_image('../data/bungae_test/images/', v)
 
 img = read_image('../data')
 text = read_text(data)
@@ -53,14 +53,12 @@ vec_model.eval()
 
 results = {}
 for inputs in data_loader:
-    # print(inputs)
     text_id, img = [x.to('cpu') for x in inputs[1:]]
     output = vec_model(text_id, img)
-    # results[inputs[0]] = output.split(1)
     new = {cid: vec[0] for cid, vec in zip(inputs[0], output.split(1))}
     results = {**results, **new}
 
-# result = torch.stack(results).squeeze(1)
+
 cos = nn.CosineSimilarity(dim=1, eps=1e-6)
 
 all_ = {}
@@ -72,9 +70,3 @@ for cid1, vec in results.items():
     all_[cid1] = sorted(his, key=lambda x: x[1], reverse=True)[:10]
 
 print(all_)
-
-# idx = vocab.to_indices(sp('[CLS] 한국어 모델을 공유합니다. [SEP]'))
-# sequence_output, pooled_output = model(torch.tensor([idx]), torch.ones(1, len(idx)))
-
-
-# merge text, image by prod id
