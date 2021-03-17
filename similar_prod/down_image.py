@@ -58,19 +58,8 @@ def read_image(dirpath):
     return imgdata
 
 
-def read_text(filepath):
-    data = pd.read_csv(filepath,
-                       compression='gzip',
-                       quotechar='"',
-                       escapechar='\\',
-                       dtype=str,
-                       nrows=100
-                       )
-
-    data.dropna(subset=['image_url'], inplace=True)
-    df = data['content_id'].groupby(data['content_id']).count()
-
-    b = data.sort_values(['content_id', 'ref_term']).groupby('content_id', as_index=False).first()
+def read_text(dataframe):
+    b = dataframe.sort_values(['content_id', 'ref_term']).groupby('content_id', as_index=False).first()
     b.fillna('', inplace=True)
 
     # text 구성 <sep> 없어도 괜찮은걸까 확인필요...
@@ -78,3 +67,5 @@ def read_text(filepath):
 
     train_text = {cid: texts for cid, texts in b[['content_id', 'texts']].values}
     return train_text
+
+
