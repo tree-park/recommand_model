@@ -1,14 +1,25 @@
 import requests  # to get image from the web
 import shutil  # to save it locally
+from torchvision import datasets, transforms
+import pandas as pd
+import torch
+import numpy as np
 
-## Set up the image URL and filename
-filename = '../data/bungae_test/images'
+# 경고 메시지 무시하기
+import warnings
+
+warnings.filterwarnings("ignore")
+
+# Set up the image URL and filename
+filepath = '../data/bungae_test/images/'
+
+
 def get_image(image_url):
     # image_url = "https://cdn.pixabay.com/photo/2020/02/06/09/39/summer-4823612_960_720.jpg"
-    # filename = image_url.split("/")[-1]
+    filename = image_url[0]
 
     # Open the url image, set stream to True, this will return the stream content.
-    r = requests.get(image_url, stream=True)
+    r = requests.get(image_url[1], stream=True)
 
     # Check if the image was retrieved successfully
     if r.status_code == 200:
@@ -16,9 +27,63 @@ def get_image(image_url):
         r.raw.decode_content = True
 
         # Open a local file with wb ( write binary ) permission.
-        with open(filename, 'wb') as f:
+        with open(filepath + filename + '.jpg', 'wb') as f:
             shutil.copyfileobj(r.raw, f)
 
-        print('Image sucessfully Downloaded: ', filename)
+        print('Image sucessfully Downloaded: ', filepath + filename)
     else:
         print('Image Couldn\'t be retreived')
+
+
+class ImgDataset:
+    def __init__(self, dataset):
+        self.dataset = {}
+        for fp, img in zip(dataset.imgs, dataset):
+            fn = fp[0].split('/')[-1].replace('.jpg', '')
+            self.dataset[fn] = img[0]
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, id):
+        return self.dataset[id]
+
+
+def read_image(dirpath):
+    transform = transforms.Compose([transforms.Resize(255),
+                                    transforms.CenterCrop(224),
+                                    transforms.ToTensor()])
+
+    imgdata = datasets.ImageFolder(dirpath, transform=transform)
+    imgdata = ImgDataset(imgdata)
+    return imgdata
+    # trainloader = torch.utils.data.DataLoader(imgdata,
+    #                                           batch_size=32)
+
+
+def read_text(filepath):
+    data = pd.read_csv(filepath,
+                       compression='gzip',
+                       quotechar='"',
+                       escapechar='\\',
+                       dtype=str,
+                       nrows=100
+                       )
+
+    data.dropna(subset=['image_url'], inplace=True)
+    df = data['content_id'].groupby(data['content_id']).count()
+
+    # a = df.loc[df > 1].index.tolist()
+    # b = data[data['content_id'].isin(a)].sort_values('content_id')
+    # # print(b.info())  # show ref_term could be null
+    b = data.sort_values(['content_id', 'ref_term']).groupby('content_id', as_index=False).first()
+    b.fillna('', inplace=True)
+
+    # text 구성 <sep> 없어도 괜찮은걸까 확인필요...
+    b['texts'] = '<cls> ' + b['name'] + ' <kwd> ' + b['keyword'] + ' <cat> ' + b['category_name']
+
+    # ready text data
+    # train_text = b[['content_id', 'texts']].values
+    # for content_id, texts in b[['content_id', 'texts']].values
+    train_text = {cid: texts for cid, texts in b[['content_id', 'texts']].values}
+    return train_text
