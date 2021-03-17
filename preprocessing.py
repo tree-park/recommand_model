@@ -14,8 +14,8 @@ class ImgDataset:
     def __len__(self):
         return len(self.dataset)
 
-    def __getitem__(self, id):
-        return self.dataset[id]
+    def __getitem__(self, cid):
+        return self.dataset[cid]
 
 
 def read_image(dirpath):
@@ -23,7 +23,7 @@ def read_image(dirpath):
                                     transforms.CenterCrop(224),
                                     transforms.ToTensor()])
 
-    imgdata = datasets.ImageFolder(dirpath, transform=transform)
+    imgdata = datasets.ImageFolder(dirpath, transform=transform, )
     imgdata = ImgDataset(imgdata)
     return imgdata
 
@@ -33,8 +33,8 @@ def read_text(dataframe):
                                                                   as_index=False).first()
     b.fillna('', inplace=True)
 
-    # TODO tag
-    b['texts'] = '<cls> ' + b['name'] + ' <kwd> ' + b['keyword'] + ' <cat> ' + b['category_name']
+    # TODO tag [SEP]', '[CLS]
+    b['texts'] = '[CLS] ' + b['name'] + ' [kwd] ' + b['keyword'] + ' [kwd] ' + b['category_name']
 
     train_text = {cid: texts for cid, texts in b[['content_id', 'texts']].values}
     return train_text
@@ -53,11 +53,11 @@ class TextProcessor:
 
 class TextImageDataset(Dataset):
     def __init__(self, textdata, imgdata):
-        assert len(textdata) == len(imgdata)
+        # assert len(textdata) == len(imgdata)
         self.textdata = textdata
         self.imgdata = imgdata
         self.data = []
-        for idx, cid in enumerate(textdata.keys()):
+        for idx, cid in enumerate(imgdata.dataset.keys()):
             self.data.append(
                 [cid, torch.tensor(self.textdata[cid]), torch.tensor(self.imgdata[cid])])
 

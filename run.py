@@ -22,16 +22,17 @@ data = pd.read_csv('data/bungae_test/rec-exam.csv000.gz',
                    quotechar='"',
                    escapechar='\\',
                    dtype=str,
-                   # nrows=100
+                   # nrows=3000
                    )
 data.dropna(subset=['image_url'], inplace=True)
+# 139687586
 
 # download data
-for v in zip(data['content_id'], data['image_url']):
-    print(v)
-    get_image('../data/bungae_test/images/', v)
+# for v in zip(data['content_id'], data['image_url']):
+#     # print(v)
+#     get_image('../data/bungae_test/images/', v)
 
-img = read_image('../data')
+img = read_image('data')
 text = read_text(data)
 
 text_model, vocab = get_pytorch_kobert_model()
@@ -46,11 +47,11 @@ dataset = TextImageDataset(text, img)
 data_loader = DataLoader(dataset, batch_size=100, collate_fn=to_batch)
 
 img_model = torch_vmodels.resnet18(pretrained=True)
-
 vec_model = TextImg2Vec(img_model, text_model)
 vec_model.to('cpu')
 vec_model.eval()
 
+print("Start vectorizing")
 results = {}
 for inputs in data_loader:
     text_id, img = [x.to('cpu') for x in inputs[1:]]
@@ -58,9 +59,12 @@ for inputs in data_loader:
     new = {cid: vec[0] for cid, vec in zip(inputs[0], output.split(1))}
     results = {**results, **new}
 
+try:
+    cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+except Exception as err:
+    print(err)
 
-cos = nn.CosineSimilarity(dim=1, eps=1e-6)
-
+print("Calculate similarity")
 all_ = {}
 for cid1, vec in results.items():
     his = []
